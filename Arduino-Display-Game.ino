@@ -41,6 +41,17 @@ byte PLAYER[8] =
   B00000,
 };
 
+byte BOT[8] =
+{
+  B00000,
+  B01111,
+  B01000,
+  B11000,
+  B01000,
+  B01111,
+  B00000,
+};
+
 byte player_x, player_y, bot_1_x, bot_1_y, bot_2_x, bot_2_y, last_direction;
 boolean is_start, is_lose, bot_death;
 int tick, passed_bot, bot_speed, level;
@@ -72,12 +83,12 @@ void print_player(byte x, byte y) {
 
 void print_bot(byte x, byte y) {
   lcd.setCursor(x, y);
-  lcd.print("x");
+  lcd.print("\2");
 }
 
 void print_level() {
   lcd.setCursor(4, 0);
-  lcd.print("level_");
+  lcd.print("level ");
   if (level < 10) {
     lcd.setCursor(10, 0);
   } else {
@@ -144,6 +155,7 @@ void setup() {
   lcd.begin();          
   lcd.backlight();
   lcd.createChar(1, PLAYER);
+  lcd.createChar(2, BOT);
   is_start = true;
 }
 
@@ -214,7 +226,7 @@ void loop() {
     }
   }
   
-  if (passed_bot % 10 == 0 && bot_death) {
+  if (passed_bot % 10 == 0 && bot_death && !is_lose) {
     bot_speed++;
     print_level();
     bot_death = false;
