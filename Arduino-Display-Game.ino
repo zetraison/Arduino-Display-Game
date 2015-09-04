@@ -26,8 +26,6 @@ const byte GAME_SHOOTER         = 1;
 
 const byte DIRECTION_RIGHT  = 0;
 const byte DIRECTION_LEFT   = 1;
-const byte DIRECTION_UP     = 2;
-const byte DIRECTION_DOWN   = 3;
 
 const byte BORDER_RIGHT   = 15;
 const byte BORDER_LEFT    = 0;
@@ -129,7 +127,6 @@ void print_level() {
     lcd.setCursor(11, 0);
   }
   lcd.print(level);
-  delay(1500);
 }
 
 // Вывод сообщения о проиденных ботах
@@ -167,7 +164,7 @@ void print_dead_bot() {
 // Сигнал шага игрока
 void signal_step() {
   tone(TONE_PIN, 400);
-  delay(10);
+  delay(30);
   noTone(TONE_PIN);
 }
 
@@ -180,12 +177,29 @@ void signal_shoot() {
 
 // Сигнал проинрыша
 void signal_lose() {
-  tone(TONE_PIN, 300);
-  delay(300);
-  tone(TONE_PIN, 250);
-  delay(300);
+  tone(TONE_PIN, 600);
+  delay(200);
+  tone(TONE_PIN, 400);
+  delay(200);
   tone(TONE_PIN, 200);
   delay(500);
+  noTone(TONE_PIN);
+}
+
+// Сигнал проинрыша
+void signal_next_level() {
+  tone(TONE_PIN, 300);
+  delay(100);
+  tone(TONE_PIN, 200);
+  delay(100);
+  tone(TONE_PIN, 400);
+  delay(100);
+  tone(TONE_PIN, 300);
+  delay(100);
+  tone(TONE_PIN, 500);
+  delay(100);
+  tone(TONE_PIN, 400);
+  delay(300);
   noTone(TONE_PIN);
 }
 
@@ -197,12 +211,6 @@ void repeat_direction() {
         break;
       case DIRECTION_LEFT:
         if (player_x > BORDER_LEFT) player_x--;
-        break;
-      case DIRECTION_UP:
-        if (player_y != BORDER_UP) player_y--;
-        break;
-      case DIRECTION_DOWN:
-        if (player_y != BORDER_DOWN) player_y++;
         break;
     }
 }
@@ -226,10 +234,10 @@ void init_game() {
     bot_is_dead     = false;
     passed_bot      = 0;
     dead_bot        = 0;
-    bot_speed       = 10;
+    bot_speed       = 5;
     
     level           = 1;
-    last_direction  = 0;
+    last_direction  = DIRECTION_RIGHT;
 };
 
 void setup() {
@@ -269,8 +277,9 @@ void loop() {
         if (is_game) {
           if (player_x < BORDER_RIGHT) player_x++;
           signal_step();
+          last_direction = DIRECTION_RIGHT;
         }
-        last_direction = DIRECTION_RIGHT;
+        last_pressed_button = BUTTON_RIGHT;
         break;
       case BUTTON_LEFT:
         if (is_menu) {
@@ -279,26 +288,28 @@ void loop() {
         if (is_game) {
           if (player_x > BORDER_LEFT) player_x--;
           signal_step();
+          last_direction = DIRECTION_LEFT;
         }
-        last_direction = DIRECTION_LEFT;
+        last_pressed_button = BUTTON_LEFT;
         break;
       case BUTTON_UP:
         if (is_game) {
           if (player_y != BORDER_UP) player_y--;
           signal_step();
         }
-        last_direction = DIRECTION_UP;
+        last_pressed_button = BUTTON_UP;
         break;
       case BUTTON_DOWN:
         if (is_game) {
           if (player_y != BORDER_DOWN) player_y++;
           signal_step();
         }
-        last_direction = DIRECTION_DOWN;
+        last_pressed_button = BUTTON_DOWN;
         break;
       case BUTTON_SHOOT:
         if (is_menu || is_lose) {
           init_game();
+          break;
         }
         if (is_game && game_settings == GAME_SHOOTER) {
           is_shoot = true;
@@ -306,20 +317,26 @@ void loop() {
           shoot_y = player_y;
           signal_shoot();
         }
+        last_pressed_button = BUTTON_SHOOT;
         break;
      case BUTTON_PUSHED:
-        if (last_pressed_button == (BUTTON_RIGHT || BUTTON_LEFT || BUTTON_UP || BUTTON_DOWN)) {
+        if (last_pressed_button == BUTTON_RIGHT) {
           repeat_direction();
+          signal_step();
+        }
+        if (last_pressed_button == BUTTON_LEFT) {
+          repeat_direction();
+          signal_step();
         }
         break;
     };
     
-    last_pressed_button = results.value;
+    //last_pressed_button = results.value;
     
     irrecv.resume(); // Receive the next value
   }
   
-    // Вывод экрана меню игры
+  // Вывод экрана меню игры
   if (is_menu) {
     print_menu();
     return;
@@ -354,10 +371,11 @@ void loop() {
         }
       }
       
-      // Если пройдено убито 10 ботов, то переходим на следующий уровень (увеличаем скорость движения ботов)
+      // Если убито 10 ботов, то переходим на следующий уровень (увеличаем скорость движения ботов)
       if (dead_bot % DEAD_BOT_FOR_NEXT_LEVEL == 0 && bot_is_dead && !is_lose) {
         dead_bot++;
         print_level();
+        signal_next_level();
         bot_is_dead = false;
         level++;
       }
@@ -374,17 +392,19 @@ void loop() {
       
       // Пробитие бота №1 снарядом
       if (shoot_x == bot_1_x && shoot_y == bot_1_y) {
-        bot_1_x = bot_2_x + BORDER_RIGHT/2;
+        bot_1_x = BORDER_RIGHT+1;
         shoot_x = BORDER_LEFT - 1;
         is_shoot = false;
+        bot_is_dead = true;
         dead_bot++;
       }
       
         // Пробитие бота №2 снарядом
       if (shoot_x == bot_2_x && shoot_y == bot_2_y) {
-        bot_2_x = bot_1_x + BORDER_RIGHT/2;
+        bot_2_x = BORDER_RIGHT+1;
         shoot_x = BORDER_LEFT - 1;
         is_shoot = false;
+        bot_is_dead = true;
         dead_bot++;
       }
       
@@ -411,6 +431,7 @@ void loop() {
       if (passed_bot % PASSED_BOT_FOR_NEXT_LEVEL == 0 && bot_is_passed && !is_lose) {
         bot_speed++;
         print_level();
+        signal_next_level();
         bot_is_passed = false;
         level++;
       }
